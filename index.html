@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="ko-KR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>이미지 메타데이터 제거기</title>
+  <style>
+    #dropArea {
+      width: 100%;
+      max-width: 400px;
+      height: 200px;
+      border: 2px dashed #ccc;
+      border-radius: 10px;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      text-align: center;
+      font-size: 18px;
+      color: #888;
+      margin: 20px auto;
+      padding: 10px;
+    }
+    #dropArea.dragover {
+      border-color: #000;
+      color: #000;
+      background-color: #f8f8f8;
+    }
+  </style>
+</head>
+<body>
+  <h2>이미지 메타데이터 제거기</h2>
+  
+  <div id="dropArea">여기에 이미지를 드래그 하세요</div>
+  <input type="file" id="fileInput" multiple accept="image/jpeg, image/png" />
+  <br><br>
+  
+  <input type="button" id="removeMetadataBtn" value="메타데이터 제거하기" />
+  <span id="statusMessage"></span>
+  
+  <script type="text/javascript">
+    const dropArea = document.getElementById('dropArea');
+
+    ['dragenter', 'dragover'].forEach(eventName => {
+      dropArea.addEventListener(eventName, (e) => {
+        e.preventDefault();
+        dropArea.classList.add('dragover');
+      }, false);
+    });
+
+    ['dragleave', 'drop'].forEach(eventName => {
+      dropArea.addEventListener(eventName, (e) => {
+        e.preventDefault();
+        dropArea.classList.remove('dragover');
+      }, false);
+    });
+
+    dropArea.addEventListener('drop', (e) => {
+      const files = e.dataTransfer.files;
+      handleFiles(files);
+    });
+
+    function removeMetadata(file, callback) {
+      const reader = new FileReader();
+      reader.onload = function(event) {
+        const img = new Image();
+        img.onload = function() {
+          const canvas = document.createElement('canvas');
+          const ctx = canvas.getContext('2d');
+          
+          canvas.width = img.width;
+          canvas.height = img.height;
+          ctx.drawImage(img, 0, 0);
+          
+          canvas.toBlob(function(blob) {
+            callback(blob);
+          }, file.type || 'image/jpeg', 1.0);
+        };
+        img.src = event.target.result;
+      };
+      reader.readAsDataURL(file);
+    }
+
+    function processFiles(files) {
+      const statusMessage = document.getElementById('statusMessage');
+      statusMessage.textContent = '처리 중...';
+
+      let processedCount = 0;
+
+      Array.from(files).forEach((file, index) => {
+        removeMetadata(file, function(blob) {
+          const link = document.createElement('a');
+          link.href = URL.createObjectURL(blob);
+          link.download = 'metadata_removed_' + file.name;
+
+          link.click();
+
+          processedCount++;
+          if (processedCount === files.length) {
+            statusMessage.textContent = '메타데이터 제거완료!';
+          }
+        });
+      });
+    }
+
+    document.getElementById('fileInput').addEventListener('change', function(event) {
+      const files = event.target.files;
+      handleFiles(files);
+    });
+
+    document.getElementById('removeMetadataBtn').addEventListener('click', function() {
+      const fileInput = document.getElementById('fileInput');
+      const files = fileInput.files;
+      if (files.length === 0 && !dropArea.files) {
+        alert('선택된 파일이 없습니다.');
+        return;
+      }
+      processFiles(files.length ? files : dropArea.files);
+    });
+
+    function handleFiles(files) {
+      if (files.length === 0) {
+        alert('파일을 선택해주세요.');
+        return;
+      }
+
+      dropArea.files = files;
+
+      const statusMessage = document.getElementById('statusMessage');
+      statusMessage.textContent = `${files.length}개의 파일이 선택되었습니다.`;
+    }
+  </script>
+</body>
+</html>
+
